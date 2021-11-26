@@ -1,6 +1,7 @@
 const http = require('http');
 const { URL } = require('url')
 
+const bodyParser = require('./helpers/bodyParser');
 const routes = require('./routes');
 
 const server = http.createServer((request, response) => {
@@ -11,7 +12,7 @@ const server = http.createServer((request, response) => {
   let { pathname } = parsedUrl;
   let id = null;
 
-  const splitEndpoint = pathname.split('/').filter((routeItem) => Boolean(routeItem));
+  const splitEndpoint = pathname.split('/').filter(Boolean);
 
   if (splitEndpoint.length > 1) {
     pathname = `/${splitEndpoint[0]}/:id`;
@@ -19,13 +20,24 @@ const server = http.createServer((request, response) => {
   }
 
   const route = routes.find((routeObj) => {
-    routeObj.endpoint === pathname && routeObj.method === request.method
-  })
-
+    if (routeObj.endpoint === pathname && routeObj.method === request.method) {
+      return routeObj;
+    }
+  });
   if (route) {
     request.query = Object.fromEntries(parsedUrl.searchParams);
     request.params = { id };
-    route.handler(request.response);
+
+    response.send = (statusCode, body) => {
+      response.writeHead(statusCode, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify(body));
+    }
+
+    if (['POST', 'PUT','PATCH'].includes(request.method)) {
+      bodyParser(request,() => route.handler(request, response));
+    } else {
+      route.handler(request, response);
+    }
   } else {
     response.writeHead(404, { 'Content-Type': 'text/html' });
     response.end(`Cannot ${request.method} ${request.url}`);
