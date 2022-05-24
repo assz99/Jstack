@@ -66,8 +66,7 @@ class ContactController {
   }
 
   async delete(request, response) {
-    const { id } = request.params;
-
+    const { id } = request.params; m
     await ContactsRepository.delete(id);
     response.sendStatus(204);
   }
